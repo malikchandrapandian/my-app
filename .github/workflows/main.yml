@@ -1,0 +1,38 @@
+name: CI/CD my-app
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Code Checkout code
+        uses: actions/checkout@v3
+
+      - name: Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Node dependencies
+        run: cd my-app && npm install
+
+      - name: Build
+        run: cd my-app && npm run build
+
+      - name: EC2 Deployment
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: "us-xxx-1"
+          EC2_USER: "ec2-user"
+          EC2_HOST: "ec2-xxx-xxx-xxx-xxx.compute-1.amazonaws.com"
+        run: |
+          cd my-app
+          zip -r build.zip build
+          scp -o StrictHostKeyChecking=no -i ${{ secrets.EC2_SSH_KEY }} build.zip $EC2_USER@$EC2_HOST:/var/www/my-app/
+          ssh -o StrictHostKeyChecking=no -i ${{ secrets.EC2_SSH_KEY }} $EC2_USER@$EC2_HOST 'unzip -o /var/www/my-app/build.zip -d /var/www/my-app/'
